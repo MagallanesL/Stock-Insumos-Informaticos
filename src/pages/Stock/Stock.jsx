@@ -252,7 +252,7 @@ const Stock = () => {
                               )
                             )}
 
-                            <div className="mt-auto id text-muted"><small>ID: {item.id}</small></div>
+                            {/* <div className="mt-auto id text-muted"><small>ID: {item.id}</small></div> */}
                           </div>
                         </div>
                       ))}
