@@ -1,0 +1,363 @@
+/* =========================
+   THEME VARIABLES
+========================= */
+:root {
+  --accent: #4f8ef7; /* primary blue */
+  --accent-2: #5ad7b6; /* teal */
+  --muted: #6c757d;
+  --text-dark: #0b1220; /* deep near-black for contrast */
+  --card-shadow: 0 16px 36px rgba(11, 17, 32, 0.06);
+  --card-shadow-strong: 0 20px 50px rgba(11, 17, 32, 0.12);
+} 
+
+/* =========================
+   CONTENEDOR
+========================= */
+.stock-container h3 {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  margin-bottom: 1.2rem;
+  color: var(--text-dark);
+} 
+
+/* =========================
+   TABLA
+========================= */
+.stock-table {
+  background-color: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+.stock-table thead {
+  background-color: #fbfbff;
+}
+
+.stock-table thead th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #4b5563;
+  border-bottom: 1px solid #eef3f7;
+}
+
+.stock-table tbody td {
+  vertical-align: middle;
+  font-size: 0.95rem;
+}
+
+/* =========================
+   FILAS
+========================= */
+.stock-row-low {
+  background-color: #fff5f4 !important;
+  border-left: 4px solid rgba(255, 90, 80, 0.12);
+}
+
+.stock-row-low:hover {
+  background-color: #fff1ef !important;
+}
+
+/* =========================
+   CANTIDAD
+========================= */
+.stock-qty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.stock-badge-low {
+  font-size: 0.68rem;
+  padding: 0.35em 0.6em;
+  background: linear-gradient(90deg, #ff8a76, #ff6b6b);
+  color: #fff;
+  border-radius: 6px;
+}
+
+/* =========================
+   BOTONES (admin)
+========================= */
+.stock-actions button {
+  min-width: 80px;
+}
+
+/* =========================
+   HEADER ACTION BUTTONS
+========================= */
+.header-controls { display: flex; align-items: center; }
+.header-controls .btn-agregar,
+.header-controls .btn-entregar,
+.header-controls .btn-reportes,
+.header-controls .btn-logout {
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba(11, 17, 32, 0.06);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+  border: none;
+}
+
+.header-controls .btn-agregar {
+  background: linear-gradient(90deg, var(--accent) 0%, #3c7de8 100%);
+  color: #fff;
+}
+
+.header-controls .btn-agregar:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px rgba(79, 142, 247, 0.14);
+}
+
+.header-controls .btn-entregar {
+  background: linear-gradient(90deg, #5ad7b6 0%, #3fd09a 100%);
+  color: #063725;
+}
+
+.header-controls .btn-entregar:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px rgba(55, 174, 123, 0.12);
+}
+
+.header-controls .btn-reportes {
+  background: #fff;
+  color: var(--text-dark);
+  border: 1px solid rgba(11,17,32,0.06);
+}
+
+.header-controls .btn-reportes:hover {
+  background: #fbfbff;
+  transform: translateY(-2px);
+}
+
+.header-controls .btn-logout {
+  background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+  border: 1px solid #e7e7e9;
+  color: #3b4149;
+}
+
+.header-controls .btn-logout:hover {
+  background: linear-gradient(180deg, #fff1f0 0%, #fffbfb 100%);
+  color: #b32d2d;
+}
+
+@media (max-width: 576px) {
+  .header-controls .btn-agregar, .header-controls .btn-entregar, .header-controls .btn-reportes, .header-controls .btn-logout {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* =========================
+   TIPOS (GROUPED)
+========================= */
+.stock-type-card {
+  position: relative;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-radius: 10px;
+  box-shadow: var(--card-shadow);
+  border: 1px solid #eef3f7;
+  overflow: hidden;
+  transition: box-shadow 0.18s ease, transform 0.12s ease;
+}
+
+.stock-type-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--card-shadow-strong);
+}
+
+/* colored accent stripe */
+.stock-type-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+}
+
+.stock-type-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(14, 36, 54, 0.02);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stock-type-header h5 {
+  font-weight: 700;
+  margin: 0;
+}
+
+.stock-type-header small.text-muted {
+  display: block;
+  color: var(--muted);
+}
+
+.type-toggle {
+  width: 36px;
+  height: 36px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(180deg, #ffffff 0%, #f3f8ff 100%);
+  box-shadow: 0 2px 6px rgba(11, 17, 32, 0.04);
+  color: var(--text-dark);
+  font-weight: 700;
+}
+
+.type-toggle:focus {
+  outline: none;
+  box-shadow: 0 6px 18px rgba(11, 17, 32, 0.12);
+} 
+
+.stock-type-body {
+  background: #fff;
+  padding: 14px;
+}
+
+/* GRID CARDS */
+.stock-grid {
+  display: block;
+}
+
+.stock-card {
+  background: linear-gradient(180deg, #ffffff 0%, #fcffff 100%);
+  border-radius: 12px;
+  border: 1px solid #eef3f7;
+  min-height: 120px;
+  padding: 14px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.stock-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 14px 40px rgba(16, 66, 147, 0.08);
+  border-color: rgba(79, 142, 247, 0.12);
+}
+
+.stock-card-low {
+  border-color: rgba(255, 115, 100, 0.22);
+  background: linear-gradient(180deg, #fff6f6 0%, #fffaf9 100%);
+  box-shadow: 0 10px 30px rgba(255, 86, 68, 0.06);
+}
+
+.stock-card .model {
+  font-size: 0.96rem;
+  color: var(--text-dark);
+}
+
+.stock-card .brand {
+  font-size: 0.82rem;
+  color: #495057;
+}
+
+.stock-card .qty {
+  min-width: 56px;
+}
+
+.stock-card .fs-5 {
+  color: var(--text-dark);
+}
+
+.stock-card .id small {
+  color: #7b8791;
+}
+
+.stock-types .stock-table thead {
+  background: transparent;
+}
+
+/* =========================
+   TABLA VACÍA
+========================= */
+.stock-empty {
+  padding: 2rem;
+  font-style: italic;
+  color: #888;
+}
+
+/* responsive tweaks */
+@media (max-width: 576px) {
+  .stock-type-header { padding: 10px; }
+  .type-toggle { width: 32px; height: 32px; }
+  .stock-card { padding: 12px; }
+}
+
+/* =========================
+   SMALL ACTION BUTTONS
+========================= */
+.btn-editar {
+  padding: 0.28rem 0.6rem;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #3c7de8 0%, #5aa0ff 100%);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.86rem;
+  border: none;
+  box-shadow: 0 8px 20px rgba(60, 125, 232, 0.08);
+}
+
+.btn-editar:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(60, 125, 232, 0.12);
+}
+
+/* Ensure stock-actions spacing looks good */
+.stock-actions .btn-editar { min-width: 70px; }
+
+/* =========================
+   ICONS + MICRO-ANIMATION
+========================= */
+.btn-icon { vertical-align: middle; width: 1rem; height: 1rem; margin-right: 0.45rem; }
+
+/* modal title icon */
+.modal-title-icon { vertical-align: middle; margin-right: 0.5rem; }
+
+/* unified hover scale for header and small action buttons */
+.header-controls .btn-agregar:not(:disabled),
+.header-controls .btn-entregar:not(:disabled),
+.header-controls .btn-reportes:not(:disabled),
+.header-controls .btn-logout:not(:disabled),
+.btn-editar:not(:disabled),
+.btn-save:not(:disabled),
+.btn-confirm:not(:disabled) {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.header-controls .btn-agregar:hover,
+.header-controls .btn-entregar:hover,
+.header-controls .btn-reportes:hover,
+.header-controls .btn-logout:hover,
+.btn-editar:hover,
+.btn-save:hover,
+.btn-confirm:hover {
+  transform: translateY(-3px) scale(1.03);
+}
+
+/* save / confirm button styles */
+.btn-save {
+  padding: 0.5rem 0.8rem;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #3fd09a 0%, #22b573 100%);
+  color: #fff;
+  font-weight: 700;
+  border: none;
+  box-shadow: 0 8px 20px rgba(34, 181, 115, 0.08);
+}
+
+.btn-confirm {
+  padding: 0.5rem 0.8rem;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #ff6b6b 0%, #ff3b3b 100%);
+  color: #fff;
+  font-weight: 700;
+  border: none;
+  box-shadow: 0 8px 20px rgba(255, 59, 59, 0.08);
+}
+
+
+

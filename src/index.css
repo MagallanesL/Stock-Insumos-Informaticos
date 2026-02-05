@@ -1,0 +1,109 @@
+/* =========================
+   THEME + GLOBALS
+   Applied across the whole app for consistency
+========================= */
+:root {
+  /* typography */
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  /* color scheme support */
+  color-scheme: light dark;
+
+  /* color tokens (dark default) */
+  --accent: #4f8ef7;
+  --accent-2: #5ad7b6;
+  --muted: rgba(255,255,255,0.68);
+  --text: rgba(255,255,255,0.92);
+  --text-muted: rgba(255,255,255,0.72);
+  --bg: #1f2430;
+  --surface: #16181c;
+  --btn-bg: rgba(255,255,255,0.04);
+  --btn-color: var(--text);
+  --btn-border: rgba(255,255,255,0.06);
+  --card-shadow: 0 16px 36px rgba(11, 17, 32, 0.06);
+  --card-shadow-strong: 0 20px 50px rgba(11, 17, 32, 0.12);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light theme overrides */
+@media (prefers-color-scheme: light) {
+  :root {
+    --muted: #6c757d;
+    --text: #0b1220; /* stronger dark text for contrast */
+    --text-muted: #6c757d;
+    --bg: #ffffff;
+    --surface: #fbfbff;
+    --btn-bg: #f5f7ff;
+    --btn-color: var(--text);
+    --btn-border: rgba(11,17,32,0.04);
+    --card-shadow: 0 10px 30px rgba(16,66,147,0.06);
+    --card-shadow-strong: 0 18px 44px rgba(16,66,147,0.09);
+  }
+}
+
+/* Links */
+a {
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--accent-2);
+}
+
+/* Page */
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Root app container */
+#root, .app-root, .container-root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
+}
+
+h1, h2, h3, h4 {
+  color: var(--text);
+}
+
+/* Buttons default */
+button {
+  border-radius: 8px;
+  border: 1px solid var(--btn-border);
+  padding: 0.55em 0.95em;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  background-color: var(--btn-bg);
+  color: var(--btn-color);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--card-shadow);
+}
+button:focus,
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 6px 18px rgba(11,17,32,0.12);
+}
+
+/* Small helpers */
+.text-muted {
+  color: var(--text-muted) !important;
+}
+
+/* keep original light-mode compat fallback behavior removed in favor of variable approach */

@@ -1,0 +1,97 @@
+/* Modern, formal and responsive login styles */
+.login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  /* subtle contrasting background that adapts to theme */
+  background: radial-gradient(circle at 10% 20%, rgba(79,142,247,0.10), transparent 8%),
+              radial-gradient(circle at 90% 80%, rgba(90,215,182,0.06), transparent 12%),
+              var(--bg);
+  background-attachment: fixed;
+}
+
+/* add a soft overlay to the card for legibility on top of the background */
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.03);
+  padding: 1.25rem;
+  backdrop-filter: blur(6px);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.03);
+  padding: 1.25rem;
+}
+
+.login-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0.75rem;
+}
+
+.login-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  box-shadow: 0 8px 24px rgba(79,142,247,0.12);
+}
+
+.login-title {
+  margin: 0;
+  font-size: 1.125rem;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.login-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.login-card .form-control {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: var(--text);
+  padding: 0.65rem;
+  border-radius: 8px;
+}
+
+.login-card .form-control:focus {
+  box-shadow: 0 8px 24px rgba(79,142,247,0.08);
+  border-color: var(--accent);
+}
+
+.login-btn {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border: none;
+  color: #fff;
+  padding: 0.65rem;
+  font-weight: 700;
+  border-radius: 8px;
+}
+
+@media (max-width: 420px) {
+  .login-card { padding: 1rem; margin: 0 0.5rem; }
+  .login-logo { width: 40px; height: 40px; }
+  .login-title { font-size: 1rem; }
+}
