@@ -65,6 +65,29 @@ const EntregarInsumo = ({ onSuccess }) => {
       return;
     }
 
+    // Confirmar datos antes de enviar
+    const parts = fecha.split("-");
+    const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    const fechaStr = dateObj.toLocaleDateString("es-AR");
+
+    const confirmResult = await Swal.fire({
+      title: "Confirmar entrega",
+      html: `
+        <div style="text-align:left">
+          <p><strong>Insumo:</strong> ${insumo.type} - ${insumo.modelo}</p>
+          <p><strong>Cantidad:</strong> ${cant}</p>
+          <p><strong>Fecha de entrega:</strong> ${fechaStr}</p>
+          <p><strong>Servicio:</strong> ${servicio}</p>
+          <p><strong>Retira:</strong> ${persona} (${dni})</p>
+        </div>
+      `,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Confirmar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!confirmResult.isConfirmed) return;
     const nuevoStock = insumo.cantidad - cant;
 
     try {
@@ -87,7 +110,16 @@ const EntregarInsumo = ({ onSuccess }) => {
         servicio,
         persona,
         dni,
-        fechaEntrega: Timestamp.fromDate(new Date(fecha)),
+        // Parse date string as local date (avoid JS UTC parse of 'YYYY-MM-DD')
+        // This ensures the stored date matches the selected calendar day for the user's locale
+        ...(function() {
+          const parts = fecha.split("-");
+          const y = Number(parts[0]);
+          const m = Number(parts[1]);
+          const d = Number(parts[2]);
+          const dateObj = new Date(y, m - 1, d);
+          return { fechaEntrega: Timestamp.fromDate(dateObj) };
+        })(),
         usuario: user?.email,
         createdAt: Timestamp.now(),
       });

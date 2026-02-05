@@ -39,14 +39,25 @@ const ReporteEntregas = () => {
   }, []);
 
   const formatFecha = (timestamp) => {
-    if (!timestamp?.toDate) return "-";
-    const date = timestamp.toDate();
+    if (!timestamp) return "-";
+
+    let date;
+    if (typeof timestamp.toDate === "function") {
+      date = timestamp.toDate();
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else if (typeof timestamp === "number") {
+      date = new Date(timestamp);
+    } else {
+      return "-";
+    }
 
     return {
       fecha: date.toLocaleDateString("es-AR"),
       hora: date.toLocaleTimeString("es-AR", {
         hour: "2-digit",
         minute: "2-digit",
+        timeZoneName: "short",
       }),
     };
   };
