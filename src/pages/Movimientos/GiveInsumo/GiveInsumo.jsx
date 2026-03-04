@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
   getDocs,
@@ -17,6 +17,7 @@ import { FaCheck } from "react-icons/fa";
 
 const EntregarInsumo = ({ onSuccess, stock = [] }) => {
   const { user } = useAuth();
+  const formRef = useRef(null);
 
   const [fetchedInsumos, setFetchedInsumos] = useState([]);
   const [search, setSearch] = useState("");
@@ -48,23 +49,39 @@ const EntregarInsumo = ({ onSuccess, stock = [] }) => {
     const term = search.trim().toLowerCase();
     if (!term) return insumos;
 
-    return insumos.filter((i) => {
+    const getScore = (i) => {
       const type = String(i.type || "").toLowerCase();
       const modelo = String(i.modelo || "").toLowerCase();
       const marca = String(i.marca || "").toLowerCase();
-      return (
+      const hayMatch =
         type.includes(term) ||
         modelo.includes(term) ||
-        marca.includes(term)
-      );
-    });
+        marca.includes(term);
+
+      if (!hayMatch) return -1;
+      if (modelo === term) return 100;
+      if (marca === term) return 90;
+      if (type === term) return 80;
+      if (modelo.startsWith(term)) return 70;
+      if (marca.startsWith(term)) return 60;
+      if (type.startsWith(term)) return 50;
+      return 10;
+    };
+
+    return insumos
+      .map((i) => ({ ...i, _score: getScore(i) }))
+      .filter((i) => i._score > -1)
+      .sort((a, b) => b._score - a._score);
   }, [insumos, search]);
+
+  const selectedInsumoId =
+    filteredInsumos.length === 1 ? filteredInsumos[0].id : insumoId;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (
-      !insumoId ||
+      !selectedInsumoId ||
       !cantidad ||
       !servicio ||
       !persona ||
@@ -75,7 +92,7 @@ const EntregarInsumo = ({ onSuccess, stock = [] }) => {
       return;
     }
 
-    const insumo = insumos.find((i) => i.id === insumoId);
+    const insumo = insumos.find((i) => i.id === selectedInsumoId);
     const cant = Number(cantidad);
 
     if (!insumo) {
@@ -115,7 +132,7 @@ const EntregarInsumo = ({ onSuccess, stock = [] }) => {
 
     try {
       // actualizar stock
-      await updateDoc(doc(db, "insumos", insumoId), {
+      await updateDoc(doc(db, "insumos", selectedInsumoId), {
         cantidad: nuevoStock,
         updatedAt: Timestamp.now(),
         updatedBy: user?.email,
@@ -155,7 +172,16 @@ const EntregarInsumo = ({ onSuccess, stock = [] }) => {
   };
 
   return (
-    <Form onSubmit={handleSubmit}>
+    <Form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      onKeyDown={(e) => {
+        if (e.ctrlKey && e.key === "Enter") {
+          e.preventDefault();
+          formRef.current?.requestSubmit();
+        }
+      }}
+    >
       <Form.Group className="mb-2">
         <Form.Label>Buscar insumo</Form.Label>
         <Form.Control
@@ -169,7 +195,7 @@ const EntregarInsumo = ({ onSuccess, stock = [] }) => {
       <Form.Group className="mb-2">
         <Form.Label>Insumo</Form.Label>
         <Form.Select
-          value={insumoId}
+          value={selectedInsumoId}
           onChange={(e) => setInsumoId(e.target.value)}
         >
           <option value="">Seleccionar</option>
@@ -180,7 +206,7 @@ const EntregarInsumo = ({ onSuccess, stock = [] }) => {
           ))}
         </Form.Select>
         <Form.Text className="text-muted">
-          {filteredInsumos.length} resultado(s)
+          {filteredInsumos.length} resultado(s). Atajo: Ctrl + Enter para confirmar.
         </Form.Text>
       </Form.Group>
 
