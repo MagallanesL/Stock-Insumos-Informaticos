@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   collection,
   getDocs,
@@ -15,10 +15,11 @@ import Swal from "sweetalert2";
 import { useAuth } from "../../../context/Authcontext/AuthContex";
 import { FaCheck } from "react-icons/fa";
 
-const EntregarInsumo = ({ onSuccess }) => {
+const EntregarInsumo = ({ onSuccess, stock = [] }) => {
   const { user } = useAuth();
 
-  const [insumos, setInsumos] = useState([]);
+  const [fetchedInsumos, setFetchedInsumos] = useState([]);
+  const [search, setSearch] = useState("");
   const [insumoId, setInsumoId] = useState("");
   const [cantidad, setCantidad] = useState("");
   const [servicio, setServicio] = useState("");
@@ -27,20 +28,37 @@ const EntregarInsumo = ({ onSuccess }) => {
   const [fecha, setFecha] = useState("");
 
   useEffect(() => {
+    if (stock.length > 0) {
+      return;
+    }
+
     const fetch = async () => {
-      const q = query(
-        collection(db, "insumos"),
-        where("cantidad", ">", 0)
-      );
+      const q = query(collection(db, "insumos"), where("cantidad", ">", 0));
       const snap = await getDocs(q);
 
-      setInsumos(
-        snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-      );
+      setFetchedInsumos(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     };
 
     fetch();
-  }, []);
+  }, [stock]);
+
+  const insumos = stock.length > 0 ? stock : fetchedInsumos;
+
+  const filteredInsumos = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return insumos;
+
+    return insumos.filter((i) => {
+      const type = String(i.type || "").toLowerCase();
+      const modelo = String(i.modelo || "").toLowerCase();
+      const marca = String(i.marca || "").toLowerCase();
+      return (
+        type.includes(term) ||
+        modelo.includes(term) ||
+        marca.includes(term)
+      );
+    });
+  }, [insumos, search]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,6 +77,11 @@ const EntregarInsumo = ({ onSuccess }) => {
 
     const insumo = insumos.find((i) => i.id === insumoId);
     const cant = Number(cantidad);
+
+    if (!insumo) {
+      Swal.fire("Error", "Selecciona un insumo valido", "error");
+      return;
+    }
 
     if (cant <= 0 || cant > insumo.cantidad) {
       Swal.fire("Error", "Cantidad inválida", "error");
@@ -134,18 +157,31 @@ const EntregarInsumo = ({ onSuccess }) => {
   return (
     <Form onSubmit={handleSubmit}>
       <Form.Group className="mb-2">
+        <Form.Label>Buscar insumo</Form.Label>
+        <Form.Control
+          type="text"
+          placeholder="Ej: mouse logitech m185"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </Form.Group>
+
+      <Form.Group className="mb-2">
         <Form.Label>Insumo</Form.Label>
         <Form.Select
           value={insumoId}
           onChange={(e) => setInsumoId(e.target.value)}
         >
           <option value="">Seleccionar</option>
-          {insumos.map((i) => (
+          {filteredInsumos.map((i) => (
             <option key={i.id} value={i.id}>
-              {i.type} - {i.modelo} (Stock: {i.cantidad})
+              {i.type} - {i.modelo} - {i.marca} (Stock: {i.cantidad})
             </option>
           ))}
         </Form.Select>
+        <Form.Text className="text-muted">
+          {filteredInsumos.length} resultado(s)
+        </Form.Text>
       </Form.Group>
 
       <Form.Group className="mb-2">
