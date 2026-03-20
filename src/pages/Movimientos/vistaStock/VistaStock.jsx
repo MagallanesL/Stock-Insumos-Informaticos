@@ -1,26 +1,76 @@
-import { useEffect, useState } from "react";
-import './VistaStock.css'
+import { useEffect, useMemo, useState } from "react";
 import {
   collection,
   getDocs,
-  query,
   orderBy,
+  query,
 } from "firebase/firestore";
-import { Container, Table, Badge, Button, Modal, Toast } from "react-bootstrap";
-import EntregarInsumo from "../GiveInsumo/GiveInsumo";
-import { useAuth } from "../../../context/Authcontext/AuthContex";
-import { FaTruck, FaClipboardList, FaSignOutAlt } from "react-icons/fa"; // icons
+import {
+  Button,
+  Container,
+  Form,
+  InputGroup,
+  Modal,
+  Toast,
+} from "react-bootstrap";
+import {
+  FaClipboardList,
+  FaSearch,
+  FaSignOutAlt,
+  FaTruck,
+} from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { db, auth } from "../../../firebase/config";
+import EntregarInsumo from "../GiveInsumo/GiveInsumo";
+import { auth, db } from "../../../firebase/config";
+import {
+  groupStockByType,
+  LOW_STOCK_THRESHOLD,
+  matchesSearch,
+} from "../../../utils/inventory";
+import "./VistaStock.css";
 
 const VistaStock = () => {
   const [stock, setStock] = useState([]);
   const [showEntrega, setShowEntrega] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
-  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [onlyLowStock, setOnlyLowStock] = useState(false);
+  const [openTypes, setOpenTypes] = useState({});
+
   const navigate = useNavigate();
+
+  const fetchStock = async () => {
+    setLoading(true);
+
+    try {
+      const stockQuery = query(collection(db, "insumos"), orderBy("type"));
+      const snapshot = await getDocs(stockQuery);
+      setStock(snapshot.docs.map((itemDoc) => ({ id: itemDoc.id, ...itemDoc.data() })));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      const stockQuery = query(collection(db, "insumos"), orderBy("type"));
+      const snapshot = await getDocs(stockQuery);
+
+      if (active) {
+        setStock(snapshot.docs.map((itemDoc) => ({ id: itemDoc.id, ...itemDoc.data() })));
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const logout = async () => {
     try {
@@ -28,124 +78,167 @@ const VistaStock = () => {
       setToastMsg("Sesión cerrada");
       setShowToast(true);
       navigate("/login");
-    } catch (e) {
-      console.error("Error closing session:", e);
+    } catch (error) {
+      console.error("Error closing session:", error);
       setToastMsg("Error cerrando sesión");
       setShowToast(true);
     }
-  }; 
-
-  const fetchStock = async () => {
-    const q = query(collection(db, "insumos"), orderBy("type"));
-    const snapshot = await getDocs(q);
-    const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    setStock(data);
   };
 
-  useEffect(() => {
-    fetchStock();
-  }, []);
+  const filteredStock = useMemo(() => {
+    return stock.filter((item) => {
+      const cantidad = Number(item.cantidad || 0);
+      const matchesLowStock =
+        !onlyLowStock ||
+        (cantidad > 0 && cantidad <= LOW_STOCK_THRESHOLD) ||
+        cantidad === 0;
 
-  const [openTypes, setOpenTypes] = useState({});
+      return matchesLowStock && matchesSearch(item, search);
+    });
+  }, [onlyLowStock, search, stock]);
+
+  const grouped = useMemo(
+    () => groupStockByType(filteredStock),
+    [filteredStock]
+  );
+
+  const types = useMemo(() => Object.keys(grouped).sort(), [grouped]);
 
   const toggleType = (type) => {
     setOpenTypes((prev) => ({ ...prev, [type]: !prev[type] }));
   };
 
-  const grouped = stock.reduce((acc, item) => {
-    const key = item.type || "Sin Tipo";
-    acc[key] = acc[key] || [];
-    acc[key].push(item);
-    return acc;
-  }, {});
-
-  const types = Object.keys(grouped).sort();
-
   return (
-    <Container className="mt-4 stock-container">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h3 className="mb-0">Stock disponible</h3>
+    <Container className="mt-4 stock-page">
+      <header className="top-navbar">
+        <div className="top-navbar-brand">
+          <p className="eyebrow">Consulta operativa</p>
+          <h2 className="stock-title">Stock disponible</h2>
+          <p className="stock-subtitle">
+            Revisá disponibilidad y registrá entregas con una búsqueda más
+            rápida y enfocada en faltantes.
+          </p>
+        </div>
 
-        <div className="d-flex gap-2 header-controls">
-          <Button className="btn-entregar" onClick={() => setShowEntrega(true)}>
+        <nav className="header-controls">
+          <Button
+            className="btn-entregar nav-button"
+            onClick={() => setShowEntrega(true)}
+          >
             <FaTruck className="btn-icon" /> Entregar insumo
           </Button>
 
-          <Button className="btn-reportes" onClick={() => navigate("/reportes/entregas") }>
-            <FaClipboardList className="btn-icon" /> Ver reporte de entregas
+          <Button
+            className="btn-reportes nav-button"
+            onClick={() => navigate("/reportes/entregas")}
+          >
+            <FaClipboardList className="btn-icon" /> Ver reporte
           </Button>
 
-          <Button className="btn-logout" onClick={logout}>
-            <FaSignOutAlt className="btn-icon" /> Cerrar sesión
+          <Button
+            className="btn-logout icon-only-button"
+            onClick={logout}
+            aria-label="Cerrar sesión"
+            title="Cerrar sesión"
+          >
+            <FaSignOutAlt />
           </Button>
+        </nav>
+      </header>
+
+      <section className="stock-toolbar">
+        <InputGroup className="stock-search">
+          <InputGroup.Text>
+            <FaSearch />
+          </InputGroup.Text>
+          <Form.Control
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por tipo, modelo o marca"
+          />
+        </InputGroup>
+
+        <label className="filter-check">
+          <input
+            type="checkbox"
+            checked={onlyLowStock}
+            onChange={(e) => setOnlyLowStock(e.target.checked)}
+          />
+          Mostrar sólo faltantes o bajo stock
+        </label>
+      </section>
+
+      {loading ? (
+        <div className="stock-empty">Cargando stock...</div>
+      ) : filteredStock.length === 0 ? (
+        <div className="stock-empty">
+          No hay insumos que coincidan con la búsqueda actual.
         </div>
-      </div>
-
-      {stock.length === 0 ? (
-        <div className="stock-empty">No hay stock cargado</div>
       ) : (
         <div className="stock-types">
           {types.map((type) => {
             const items = grouped[type];
-            const totalQty = items.reduce((s, i) => s + (Number(i.cantidad) || 0), 0);
+            const expanded = Boolean(search) || onlyLowStock || Boolean(openTypes[type]);
 
             return (
               <div key={type} className="stock-type-card mb-3">
-                <div className="stock-type-header d-flex justify-content-between align-items-center">
+                <div className="stock-type-header">
                   <div className="d-flex align-items-center gap-3">
                     <button
-                      className={`type-toggle btn btn-sm btn-light`}
+                      type="button"
+                      className="type-toggle"
                       onClick={() => toggleType(type)}
-                      aria-expanded={!!openTypes[type]}
+                      aria-expanded={expanded}
                     >
-                      {openTypes[type] ? '▾' : '▸'}
+                      {expanded ? "▾" : "▸"}
                     </button>
 
                     <div>
                       <h5 className="mb-0">{type}</h5>
-                      <small className="text-muted">{items.length} modelos — {totalQty} unidades</small>
+                      <small className="text-muted">
+                        {items.length} modelos
+                      </small>
                     </div>
                   </div>
-
-                  <div className="text-muted">{items.length} items</div>
                 </div>
 
-                {openTypes[type] && (
+                {expanded && (
                   <div className="stock-type-body p-3">
                     <div className="stock-grid row g-3">
-                      {items.map((item) => (
-                        <div key={item.id} className="col-12 col-sm-6 col-md-4 col-lg-3">
-                          <div className={`stock-card p-3 h-100 d-flex flex-column ${item.cantidad <= 3 ? 'stock-card-low' : ''}`}>
-                            <div className="d-flex justify-content-between align-items-start mb-2">
-                              <div>
-                                <div className="model fw-600">{item.modelo}</div>
-                                <div className="brand text-muted small">{item.marca}</div>
-                              </div>
+                      {items.map((item) => {
+                        const cantidad = Number(item.cantidad || 0);
+                        const warning =
+                          cantidad === 0 ||
+                          (cantidad > 0 && cantidad <= LOW_STOCK_THRESHOLD);
 
-                              <div className="text-end qty">
-                                {item.cantidad <= 3 && (
-                                  <Badge bg="danger" className="stock-badge-low d-block mb-1">Bajo</Badge>
-                                )}
-                                <div className="fs-5 fw-600">{item.cantidad}</div>
+                        return (
+                          <div key={item.id} className="col-12 col-sm-6 col-xl-4">
+                            <div
+                              className={`stock-card p-3 h-100 d-flex flex-column ${
+                                warning ? "stock-card-low" : ""
+                              }`}
+                            >
+                              <div className="model fw-600">{item.modelo}</div>
+                              <div className="brand text-muted small">
+                                {item.marca || "Sin marca"}
                               </div>
-                            </div>
-
-                            <div className="mt-auto">
-                              {/* <small className="text-muted">ID: {item.id}</small> */}
+                              <div className="stock-inline-meta mt-3">
+                                <span>Tipo: {item.type}</span>
+                                <strong>Stock: {cantidad}</strong>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
-                )} 
+                )}
               </div>
             );
           })}
         </div>
       )}
 
-      {/* TOAST */}
       <Toast
         show={showToast}
         onClose={() => setShowToast(false)}
@@ -161,19 +254,17 @@ const VistaStock = () => {
         <Toast.Body>{toastMsg}</Toast.Body>
       </Toast>
 
-      {/* MODAL ENTREGA */}
-      <Modal
-        show={showEntrega}
-        onHide={() => setShowEntrega(false)}
-        centered
-      >
+      <Modal show={showEntrega} onHide={() => setShowEntrega(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title><FaTruck className="modal-title-icon" /> Entrega de insumos</Modal.Title>
+          <Modal.Title>
+            <FaTruck className="modal-title-icon" /> Entrega de insumos
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <EntregarInsumo
-            onSuccess={(msg) => {
-              fetchStock();
+            stock={stock.filter((item) => Number(item.cantidad || 0) > 0)}
+            onSuccess={async (msg) => {
+              await fetchStock();
               setShowEntrega(false);
               setToastMsg(msg || "Entrega registrada correctamente");
               setShowToast(true);

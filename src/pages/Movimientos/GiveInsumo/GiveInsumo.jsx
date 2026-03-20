@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
+  doc,
   getDocs,
   query,
-  where,
-  doc,
-  updateDoc,
-  addDoc,
+  runTransaction,
   Timestamp,
+  where,
 } from "firebase/firestore";
-import { db } from "../../../firebase/config";
-import { Form, Button } from "react-bootstrap";
+import { Button, Form } from "react-bootstrap";
 import Swal from "sweetalert2";
-import { useAuth } from "../../../context/Authcontext/AuthContex";
 import { FaCheck } from "react-icons/fa";
+import { db } from "../../../firebase/config";
+import { useAuth } from "../../../context/Authcontext/useAuth";
+import { matchesSearch } from "../../../utils/inventory";
+
+const TODAY = new Date().toISOString().slice(0, 10);
 
 const EntregarInsumo = ({ onSuccess, stock = [] }) => {
   const { user } = useAuth();
@@ -26,97 +28,104 @@ const EntregarInsumo = ({ onSuccess, stock = [] }) => {
   const [servicio, setServicio] = useState("");
   const [persona, setPersona] = useState("");
   const [dni, setDni] = useState("");
-  const [fecha, setFecha] = useState("");
+  const [fecha, setFecha] = useState(TODAY);
+  const [saving, setSaving] = useState(false);
+  const [serviceOptions, setServiceOptions] = useState([]);
 
   useEffect(() => {
     if (stock.length > 0) {
       return;
     }
 
-    const fetch = async () => {
-      const q = query(collection(db, "insumos"), where("cantidad", ">", 0));
-      const snap = await getDocs(q);
+    let active = true;
 
-      setFetchedInsumos(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    (async () => {
+      const stockQuery = query(collection(db, "insumos"), where("cantidad", ">", 0));
+      const snap = await getDocs(stockQuery);
+
+      if (active) {
+        setFetchedInsumos(snap.docs.map((itemDoc) => ({ id: itemDoc.id, ...itemDoc.data() })));
+      }
+    })();
+
+    return () => {
+      active = false;
     };
-
-    fetch();
   }, [stock]);
+
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      const snap = await getDocs(collection(db, "movimientos"));
+      const recentServices = Array.from(
+        new Set(
+          snap.docs
+            .map((itemDoc) => itemDoc.data()?.servicio)
+            .filter(Boolean)
+            .slice(0, 10)
+        )
+      );
+
+      if (active) {
+        setServiceOptions(recentServices);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const insumos = stock.length > 0 ? stock : fetchedInsumos;
 
   const filteredInsumos = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return insumos;
+    if (!search.trim()) {
+      return insumos;
+    }
 
-    const getScore = (i) => {
-      const type = String(i.type || "").toLowerCase();
-      const modelo = String(i.modelo || "").toLowerCase();
-      const marca = String(i.marca || "").toLowerCase();
-      const hayMatch =
-        type.includes(term) ||
-        modelo.includes(term) ||
-        marca.includes(term);
-
-      if (!hayMatch) return -1;
-      if (modelo === term) return 100;
-      if (marca === term) return 90;
-      if (type === term) return 80;
-      if (modelo.startsWith(term)) return 70;
-      if (marca.startsWith(term)) return 60;
-      if (type.startsWith(term)) return 50;
-      return 10;
-    };
-
-    return insumos
-      .map((i) => ({ ...i, _score: getScore(i) }))
-      .filter((i) => i._score > -1)
-      .sort((a, b) => b._score - a._score);
+    return insumos.filter((item) => matchesSearch(item, search));
   }, [insumos, search]);
 
-  const selectedInsumoId =
-    filteredInsumos.length === 1 ? filteredInsumos[0].id : insumoId;
+  const selectedInsumo =
+    insumos.find((item) => item.id === insumoId) ||
+    (filteredInsumos.length === 1 ? filteredInsumos[0] : null);
+
+  const resetForm = () => {
+    setSearch("");
+    setInsumoId("");
+    setCantidad("");
+    setServicio("");
+    setPersona("");
+    setDni("");
+    setFecha(TODAY);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (
-      !selectedInsumoId ||
-      !cantidad ||
-      !servicio ||
-      !persona ||
-      !dni ||
-      !fecha
-    ) {
-      Swal.fire("Error", "Completa todos los campos", "error");
+    if (!selectedInsumo || !cantidad || !servicio || !persona || !dni || !fecha) {
+      Swal.fire("Error", "Completá todos los campos", "error");
       return;
     }
 
-    const insumo = insumos.find((i) => i.id === selectedInsumoId);
     const cant = Number(cantidad);
-
-    if (!insumo) {
-      Swal.fire("Error", "Selecciona un insumo valido", "error");
+    if (Number.isNaN(cant) || cant <= 0 || cant > Number(selectedInsumo.cantidad || 0)) {
+      Swal.fire("Error", "La cantidad debe ser válida y no superar el stock disponible", "error");
       return;
     }
 
-    if (cant <= 0 || cant > insumo.cantidad) {
-      Swal.fire("Error", "Cantidad inválida", "error");
-      return;
-    }
-
-    // Confirmar datos antes de enviar
-    const parts = fecha.split("-");
-    const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-    const fechaStr = dateObj.toLocaleDateString("es-AR");
+    const [year, month, day] = fecha.split("-").map(Number);
+    const fechaEntrega = new Date(year, month - 1, day);
+    const fechaStr = fechaEntrega.toLocaleDateString("es-AR");
 
     const confirmResult = await Swal.fire({
       title: "Confirmar entrega",
       html: `
         <div style="text-align:left">
-          <p><strong>Insumo:</strong> ${insumo.type} - ${insumo.modelo}</p>
+          <p><strong>Insumo:</strong> ${selectedInsumo.type} - ${selectedInsumo.modelo}</p>
           <p><strong>Cantidad:</strong> ${cant}</p>
-          <p><strong>Fecha de entrega:</strong> ${fechaStr}</p>
+          <p><strong>Fecha:</strong> ${fechaStr}</p>
           <p><strong>Servicio:</strong> ${servicio}</p>
           <p><strong>Retira:</strong> ${persona} (${dni})</p>
         </div>
@@ -127,47 +136,55 @@ const EntregarInsumo = ({ onSuccess, stock = [] }) => {
       cancelButtonText: "Cancelar",
     });
 
-    if (!confirmResult.isConfirmed) return;
-    const nuevoStock = insumo.cantidad - cant;
+    if (!confirmResult.isConfirmed) {
+      return;
+    }
+
+    setSaving(true);
 
     try {
-      // actualizar stock
-      await updateDoc(doc(db, "insumos", selectedInsumoId), {
-        cantidad: nuevoStock,
-        updatedAt: Timestamp.now(),
-        updatedBy: user?.email,
+      await runTransaction(db, async (transaction) => {
+        const insumoRef = doc(db, "insumos", selectedInsumo.id);
+        const movimientoRef = doc(collection(db, "movimientos"));
+        const insumoSnap = await transaction.get(insumoRef);
+        const stockActual = Number(insumoSnap.data()?.cantidad || 0);
+
+        if (cant > stockActual) {
+          throw new Error("Stock insuficiente");
+        }
+
+        const stockNuevo = stockActual - cant;
+
+        transaction.update(insumoRef, {
+          cantidad: stockNuevo,
+          updatedAt: Timestamp.now(),
+          updatedBy: user?.email || "sistema",
+        });
+
+        transaction.set(movimientoRef, {
+          tipo: selectedInsumo.type,
+          modelo: selectedInsumo.modelo,
+          marca: selectedInsumo.marca,
+          tipoMovimiento: "SALIDA",
+          cantidad: cant,
+          stockAnterior: stockActual,
+          stockNuevo,
+          servicio,
+          persona,
+          dni,
+          fechaEntrega: Timestamp.fromDate(fechaEntrega),
+          usuario: user?.email || "sistema",
+          createdAt: Timestamp.now(),
+        });
       });
 
-      // registrar movimiento
-      await addDoc(collection(db, "movimientos"), {
-        tipo: insumo.type,
-        modelo: insumo.modelo,
-        marca: insumo.marca,
-        tipoMovimiento: "SALIDA",
-        cantidad: cant,
-        stockAnterior: insumo.cantidad,
-        stockNuevo: nuevoStock,
-        servicio,
-        persona,
-        dni,
-        // Parse date string as local date (avoid JS UTC parse of 'YYYY-MM-DD')
-        // This ensures the stored date matches the selected calendar day for the user's locale
-        ...(function() {
-          const parts = fecha.split("-");
-          const y = Number(parts[0]);
-          const m = Number(parts[1]);
-          const d = Number(parts[2]);
-          const dateObj = new Date(y, m - 1, d);
-          return { fechaEntrega: Timestamp.fromDate(dateObj) };
-        })(),
-        usuario: user?.email,
-        createdAt: Timestamp.now(),
-      });
-
+      resetForm();
       onSuccess?.("Entrega registrada correctamente");
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
       Swal.fire("Error", "No se pudo registrar la entrega", "error");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -182,7 +199,7 @@ const EntregarInsumo = ({ onSuccess, stock = [] }) => {
         }
       }}
     >
-      <Form.Group className="mb-2">
+      <Form.Group className="mb-3">
         <Form.Label>Buscar insumo</Form.Label>
         <Form.Control
           type="text"
@@ -195,13 +212,13 @@ const EntregarInsumo = ({ onSuccess, stock = [] }) => {
       <Form.Group className="mb-2">
         <Form.Label>Insumo</Form.Label>
         <Form.Select
-          value={selectedInsumoId}
+          value={selectedInsumo?.id || ""}
           onChange={(e) => setInsumoId(e.target.value)}
         >
           <option value="">Seleccionar</option>
-          {filteredInsumos.map((i) => (
-            <option key={i.id} value={i.id}>
-              {i.type} - {i.modelo} - {i.marca} (Stock: {i.cantidad})
+          {filteredInsumos.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.type} - {item.modelo} - {item.marca || "Sin marca"} (Stock: {item.cantidad})
             </option>
           ))}
         </Form.Select>
@@ -210,35 +227,55 @@ const EntregarInsumo = ({ onSuccess, stock = [] }) => {
         </Form.Text>
       </Form.Group>
 
-      <Form.Group className="mb-2">
-        <Form.Label>Cantidad</Form.Label>
-        <Form.Control
-          type="number"
-          min="1"
-          value={cantidad}
-          onChange={(e) => setCantidad(e.target.value)}
-        />
-      </Form.Group>
+      {selectedInsumo && (
+        <div className="selected-insumo-card mb-3">
+          <strong>
+            {selectedInsumo.type} - {selectedInsumo.modelo}
+          </strong>
+          <span>{selectedInsumo.marca || "Sin marca"}</span>
+          <span>Stock disponible: {selectedInsumo.cantidad}</span>
+        </div>
+      )}
 
-      <Form.Group className="mb-2">
-        <Form.Label>Fecha de entrega</Form.Label>
-        <Form.Control
-          type="date"
-          value={fecha}
-          onChange={(e) => setFecha(e.target.value)}
-        />
-      </Form.Group>
+      <div className="form-two-columns">
+        <Form.Group className="mb-2">
+          <Form.Label>Cantidad</Form.Label>
+          <Form.Control
+            type="number"
+            min="1"
+            max={selectedInsumo?.cantidad || undefined}
+            value={cantidad}
+            onChange={(e) => setCantidad(e.target.value)}
+          />
+        </Form.Group>
+
+        <Form.Group className="mb-2">
+          <Form.Label>Fecha de entrega</Form.Label>
+          <Form.Control
+            type="date"
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+          />
+        </Form.Group>
+      </div>
 
       <Form.Group className="mb-2">
         <Form.Label>Servicio</Form.Label>
         <Form.Control
+          list="servicios-frecuentes"
           value={servicio}
           onChange={(e) => setServicio(e.target.value)}
+          placeholder="Ej: Neonatología"
         />
+        <datalist id="servicios-frecuentes">
+          {serviceOptions.map((item) => (
+            <option key={item} value={item} />
+          ))}
+        </datalist>
       </Form.Group>
 
       <Form.Group className="mb-2">
-        <Form.Label>Nombre y Apellido</Form.Label>
+        <Form.Label>Nombre y apellido</Form.Label>
         <Form.Control
           value={persona}
           onChange={(e) => setPersona(e.target.value)}
@@ -253,8 +290,8 @@ const EntregarInsumo = ({ onSuccess, stock = [] }) => {
         />
       </Form.Group>
 
-      <Button type="submit" variant="danger" className="w-100 btn-confirm">
-        <FaCheck className="btn-icon" /> Confirmar entrega
+      <Button type="submit" variant="danger" className="w-100 btn-confirm" disabled={saving}>
+        <FaCheck className="btn-icon" /> {saving ? "Registrando..." : "Confirmar entrega"}
       </Button>
     </Form>
   );
