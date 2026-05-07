@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import {
   addDoc,
+  arrayUnion,
   collection,
   doc,
   getDocs,
   runTransaction,
+  setDoc,
   Timestamp,
 } from "firebase/firestore";
 import { Alert, Button, Form } from "react-bootstrap";
@@ -13,14 +15,26 @@ import { FaSave } from "react-icons/fa";
 import { db } from "../../firebase/config";
 import { buildInsumoKey } from "../../utils/inventory";
 
+const CUSTOM_OPTION = "__custom__";
+
 const AddStock = ({ onSuccess }) => {
   const [types, setTypes] = useState({});
-  const [tipo, setTipo] = useState("");
-  const [modelo, setModelo] = useState("");
+  const [typeDocId, setTypeDocId] = useState("");
+  const [selectedType, setSelectedType] = useState("");
+  const [customType, setCustomType] = useState("");
+  const [selectedModelo, setSelectedModelo] = useState("");
+  const [customModelo, setCustomModelo] = useState("");
   const [marca, setMarca] = useState("");
   const [cantidad, setCantidad] = useState("");
   const [saving, setSaving] = useState(false);
   const [duplicateHint, setDuplicateHint] = useState(null);
+
+  const tipo =
+    selectedType === CUSTOM_OPTION ? customType.trim() : selectedType.trim();
+  const modelo =
+    selectedType === CUSTOM_OPTION || selectedModelo === CUSTOM_OPTION
+      ? customModelo.trim()
+      : selectedModelo.trim();
 
   useEffect(() => {
     let active = true;
@@ -29,6 +43,7 @@ const AddStock = ({ onSuccess }) => {
       const snapshot = await getDocs(collection(db, "Type"));
 
       if (active && !snapshot.empty) {
+        setTypeDocId(snapshot.docs[0].id);
         setTypes(snapshot.docs[0].data());
       }
     })();
@@ -64,11 +79,46 @@ const AddStock = ({ onSuccess }) => {
   }, [tipo, modelo, marca]);
 
   const resetForm = () => {
-    setTipo("");
-    setModelo("");
+    setSelectedType("");
+    setCustomType("");
+    setSelectedModelo("");
+    setCustomModelo("");
     setMarca("");
     setCantidad("");
     setDuplicateHint(null);
+  };
+
+  const syncTypeCatalog = async (nextType, nextModel) => {
+    if (!nextType || !nextModel) {
+      return;
+    }
+
+    if (typeDocId) {
+      await setDoc(
+        doc(db, "Type", typeDocId),
+        { [nextType]: arrayUnion(nextModel) },
+        { merge: true }
+      );
+    } else {
+      const newDocRef = await addDoc(collection(db, "Type"), {
+        [nextType]: [nextModel],
+      });
+      setTypeDocId(newDocRef.id);
+    }
+
+    setTypes((prev) => {
+      const currentModels = Array.isArray(prev[nextType]) ? prev[nextType] : [];
+      if (currentModels.includes(nextModel)) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [nextType]: [...currentModels, nextModel].sort((a, b) =>
+          a.localeCompare(b)
+        ),
+      };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -112,10 +162,12 @@ const AddStock = ({ onSuccess }) => {
           "success"
         );
       } else {
+        await syncTypeCatalog(tipo, modelo);
+
         await addDoc(collection(db, "insumos"), {
           type: tipo,
           modelo,
-          marca,
+          marca: marca.trim(),
           cantidad: cantidadNueva,
           createdAt: Timestamp.now(),
         });
@@ -138,35 +190,62 @@ const AddStock = ({ onSuccess }) => {
       <Form.Group className="mb-3">
         <Form.Label>Tipo</Form.Label>
         <Form.Select
-          value={tipo}
+          value={selectedType}
           onChange={(e) => {
-            setTipo(e.target.value);
-            setModelo("");
+            setSelectedType(e.target.value);
+            setSelectedModelo("");
+            setCustomModelo("");
           }}
         >
           <option value="">Seleccioná un tipo</option>
-          {Object.keys(types).map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
+          {Object.keys(types)
+            .sort((a, b) => a.localeCompare(b))
+            .map((typeOption) => (
+              <option key={typeOption} value={typeOption}>
+                {typeOption}
+              </option>
+            ))}
+          <option value={CUSTOM_OPTION}>No está en la lista</option>
         </Form.Select>
       </Form.Group>
 
-      {tipo && (
+      {selectedType === CUSTOM_OPTION && (
+        <Form.Group className="mb-3">
+          <Form.Label>Nuevo tipo</Form.Label>
+          <Form.Control
+            value={customType}
+            onChange={(e) => setCustomType(e.target.value)}
+            placeholder="Ej: Adaptadores"
+          />
+        </Form.Group>
+      )}
+
+      {selectedType && selectedType !== CUSTOM_OPTION && (
         <Form.Group className="mb-3">
           <Form.Label>Modelo</Form.Label>
           <Form.Select
-            value={modelo}
-            onChange={(e) => setModelo(e.target.value)}
+            value={selectedModelo}
+            onChange={(e) => setSelectedModelo(e.target.value)}
           >
             <option value="">Seleccioná un modelo</option>
-            {types[tipo]?.map((itemModel) => (
+            {types[selectedType]?.map((itemModel) => (
               <option key={itemModel} value={itemModel}>
                 {itemModel}
               </option>
             ))}
+            <option value={CUSTOM_OPTION}>No está en la lista</option>
           </Form.Select>
+        </Form.Group>
+      )}
+
+      {(selectedType === CUSTOM_OPTION || selectedModelo === CUSTOM_OPTION) && (
+        <Form.Group className="mb-3">
+          <Form.Label>Nuevo modelo</Form.Label>
+          <Form.Control
+            value={customModelo}
+            onChange={(e) => setCustomModelo(e.target.value)}
+            placeholder="Ej: M185"
+          />
         </Form.Group>
       )}
 

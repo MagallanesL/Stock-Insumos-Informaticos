@@ -271,6 +271,13 @@ const Stock = () => {
 
           <Button
             className="btn-reportes nav-button"
+            onClick={() => navigate("/movimientos")}
+          >
+            <FaBoxOpen className="btn-icon" /> Ver stock disponible
+          </Button>
+
+          <Button
+            className="btn-reportes nav-button"
             onClick={() => navigate("/reportes/entregas")}
           >
             <FaClipboardList className="btn-icon" /> Ver reportes
